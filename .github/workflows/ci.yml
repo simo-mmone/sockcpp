@@ -1,0 +1,30 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            install_deps: sudo apt-get install libboost-all-dev
+            build_command: g++ -std=c++11 main.cpp -o main -lboost_system
+          - os: windows-latest
+            install_deps: choco install boost-msvc-14.2
+            build_command: cl /EHsc main.cpp /I"C:\Program Files\boost\boost_1_76_0" /link /LIBPATH:"C:\Program Files\boost\boost_1_76_0\lib64-msvc-14.2"
+          - os: macos-latest
+            install_deps: brew install boost
+            build_command: g++ -std=c++11 main.cpp -o main -lboost_system
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: ${{ matrix.install_deps }}
+
+    - name: Build
+      run: ${{ matrix.build_command }}
