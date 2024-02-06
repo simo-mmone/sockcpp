@@ -14,8 +14,13 @@ jobs:
             install_deps: sudo apt-get install libboost-all-dev
             build_command: g++ -std=c++11 main.cpp -o main -lboost_system
           - os: windows-latest
-            install_deps: choco install boost-msvc-14.2
-            build_command: cl /EHsc main.cpp /I"C:\Program Files\boost\boost_1_76_0" /link /LIBPATH:"C:\Program Files\boost\boost_1_76_0\lib64-msvc-14.2"
+            install_deps: |
+              git clone https://github.com/Microsoft/vcpkg.git
+              cd vcpkg
+              ./bootstrap-vcpkg.sh
+              ./vcpkg integrate install
+              ./vcpkg install boost
+            build_command: cl /EHsc main.cpp /I"C:\vcpkg\installed\x64-windows\include" /link /LIBPATH:"C:\vcpkg\installed\x64-windows\lib"
           - os: macos-latest
             install_deps: brew install boost
             build_command: g++ -std=c++11 main.cpp -o main -lboost_system
