@@ -30,14 +30,7 @@ jobs:
 
     - name: Build
       shell: bash
-      run: |
-        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          g++ -o output main.cpp base64.cpp
-        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-          g++-9 -o output main.cpp base64.cpp
-        else
-          g++ -o output main.cpp base64.cpp
-        fi
+      run: g++ -o output main.cpp base64.cpp
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
