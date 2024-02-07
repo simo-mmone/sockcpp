@@ -32,7 +32,7 @@ jobs:
       shell: bash
       run: |
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          g++ -o output main.cpp base64.cpp -DWINDOWS
+          g++ -o output main.cpp base64.cpp -DWINDOWS -lws2_32
         else
           g++ -o output main.cpp base64.cpp
         fi
