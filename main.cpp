@@ -119,7 +119,7 @@ int main() {
     struct sockaddr_in serverAddr;
 
 #ifdef WINDOWS
-    WSDATA wsaData;
+    WSADATA wsaData;
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "Error initializing Winsock\n";
