@@ -36,14 +36,9 @@ jobs:
         else
           g++ -o output main.cpp base64.cpp
         fi
-    
-    - name: List windows files recursively
-      if: matrix.os == 'windows-latest'
-      run: |
-        ls -R
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
         name: compiled-output-${{ matrix.os }}
-        path: ./output
+        path: ${{ matrix.os == 'windows-latest' && './output.exe' || './output' }}
