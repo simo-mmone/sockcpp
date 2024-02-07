@@ -1,13 +1,20 @@
 #include <iostream>
 #include <string>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 #include <random>
 #include <sstream>
-#include <fcntl.h>
 
 #include "base64.h"
+
+#ifdef WINDOWS
+    #pragma comment(lib, "ws2_32.lib")
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <sys/socket.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+    #include <fcntl.h>
+#endif
 
 const std::string SERVER_IP = "127.0.0.1";
 const int SERVER_PORT = 6666;
@@ -89,30 +96,49 @@ std::string receiveWebSocketMessage(int clientSocket) {
     }
     buffer[bytesRead] = '\0';
 
-    // get first byte
+    // TODO: 
+    //  - handle the case when the message is fragmented
+    //  - handle the case when the message is masked
+    //  - handle the case when the message is longer than 125 bytes
+
+    // fin + rsv1 + rsv2 + rsv3 + opcode
     unsigned char firstByte = buffer[0];
     std::cout << "First byte: " << std::hex << (int)firstByte << std::endl;
-    // get second byte
+    // mask + payload length
     unsigned char secondByte = buffer[1];
     std::cout << "Second byte: " << std::hex << (int)secondByte << std::endl;
 
 
     // print the rest of the message
     std::string msg = buffer + 2;
-    std::cout << "Received message from server:\n" << msg << std::endl;
     return msg;
 }
 
 int main() {
     int clientSocket;
     struct sockaddr_in serverAddr;
-    
+
+#ifdef WINDOWS
+    WSDATA wsaData;
+    // Initialize Winsock
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        std::cerr << "Error initializing Winsock\n";
+        return 1;
+    }
+    // Create a socket
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == INVALID_SOCKET) {
+        std::cerr << "Error creating socket\n";
+        return 1;
+    }
+#else
     // Create a socket
     clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (clientSocket == -1) {
         std::cerr << "Error creating socket\n";
         return 1;
     }
+#endif
 
     // Set up server address
     serverAddr.sin_family = AF_INET;
@@ -160,6 +186,14 @@ int main() {
         return 1;
     }
 
+#ifdef WINDOWS
+    // Set the socket to non-blocking mode
+    u_long mode = 1;
+    if (ioctlsocket(clientSocket, FIONBIO, &mode) == SOCKET_ERROR) {
+        std::cerr << "Error setting socket to non-blocking mode\n";
+        return 1;
+    }
+#else
     // Set the socket to non-blocking mode
     int flags = fcntl(clientSocket, F_GETFL, 0);
     if (flags == -1) {
@@ -170,6 +204,7 @@ int main() {
         std::cerr << "Error setting socket to non-blocking mode\n";
         return 1;
     }
+#endif
 
     bool received = false;
     while (!received) {
@@ -179,15 +214,15 @@ int main() {
             received = true;
         }
     }
-    // // Receive and handle message from the server
-    // std::string msg = receiveWebSocketMessage(clientSocket);
-    // if (!msg.empty()) {
-    //     std::cout << "Received message from server:\n" << msg << std::endl;
-    // }
 
-
+#ifdef WINDOWS
+    // Close the socket
+    closesocket(clientSocket);
+    WSACleanup();
+#else
     // Close the socket
     close(clientSocket);
+#endif
 
     return 0;
 }

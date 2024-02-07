@@ -1,0 +1,39 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ basic ]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          choco install make mingw
+        else
+          sudo apt-get install -y g++
+        fi
+
+    - name: Build
+      run: |
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          mingw32-make
+        else
+          g++ -o output main.cpp base64.cpp
+        fi
+
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiled-output-${{ matrix.os }}
+        path: ./output
