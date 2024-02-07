@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <random>
 #include <sstream>
+#include <fcntl.h>
 
 #include "base64.h"
 
@@ -24,6 +25,24 @@ std::string generate_nonce() {
     return ss.str();
 }
 
+// 0                   1                   2                   3
+// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-------+-+-------------+-------------------------------+
+// |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+// |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+// |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+// | |1|2|3|       |K|             |                               |
+// +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+// |     Extended payload length continued, if payload len == 127  |
+// + - - - - - - - - - - - - - - - +-------------------------------+
+// |                               |Masking-key, if MASK set to 1  |
+// +-------------------------------+-------------------------------+
+// | Masking-key (continued)       |          Payload Data         |
+// +-------------------------------- - - - - - - - - - - - - - - - +
+// :                     Payload Data continued ...                :
+// + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+// |                     Payload Data continued ...                |
+// +---------------------------------------------------------------+
 
 std::string composeWebSocketMessage(std::string & message)
 {
@@ -59,6 +78,29 @@ std::string composeWebSocketMessage(std::string & message)
     frame.append(maskKey.data(), maskKey.size());
     frame.append(message);
     return frame;
+}
+
+std::string receiveWebSocketMessage(int clientSocket) {
+    char buffer[1024];
+    ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+    if (bytesRead == -1) {
+        // std::cerr << "Error receiving response from server\n";
+        return "";
+    }
+    buffer[bytesRead] = '\0';
+
+    // get first byte
+    unsigned char firstByte = buffer[0];
+    std::cout << "First byte: " << std::hex << (int)firstByte << std::endl;
+    // get second byte
+    unsigned char secondByte = buffer[1];
+    std::cout << "Second byte: " << std::hex << (int)secondByte << std::endl;
+
+
+    // print the rest of the message
+    std::string msg = buffer + 2;
+    std::cout << "Received message from server:\n" << msg << std::endl;
+    return msg;
 }
 
 int main() {
@@ -117,6 +159,31 @@ int main() {
         std::cerr << "Error sending WebSocket message\n";
         return 1;
     }
+
+    // Set the socket to non-blocking mode
+    int flags = fcntl(clientSocket, F_GETFL, 0);
+    if (flags == -1) {
+        std::cerr << "Error getting socket flags\n";
+        return 1;
+    }
+    if (fcntl(clientSocket, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::cerr << "Error setting socket to non-blocking mode\n";
+        return 1;
+    }
+
+    bool received = false;
+    while (!received) {
+        std::string msg = receiveWebSocketMessage(clientSocket);
+        if (!msg.empty()) {
+            std::cout << "Received message from server:\n" << msg << std::endl;
+            received = true;
+        }
+    }
+    // // Receive and handle message from the server
+    // std::string msg = receiveWebSocketMessage(clientSocket);
+    // if (!msg.empty()) {
+    //     std::cout << "Received message from server:\n" << msg << std::endl;
+    // }
 
 
     // Close the socket
